@@ -19,9 +19,10 @@ class Audit:
  def raw(self,rel):
   self.current_source=str(rel);p=self.path(rel)
   if not p.is_file():return None
-  if p.stat().st_size>MAX:raise ValueError('SOURCE_SIZE_LIMIT')
+  size=p.stat().st_size
+  if size>MAX:raise ValueError('SOURCE_SIZE_LIMIT')
+  if self.total+size>256*1024*1024:raise ValueError('TOTAL_READ_LIMIT')
   raw=p.read_bytes();self.total+=len(raw)
-  if self.total>256*1024*1024:raise ValueError('TOTAL_READ_LIMIT')
   self.seen[str(rel)]=hashlib.sha256(raw).hexdigest();return raw
  def json(self,rel):
   raw=self.raw(rel);return json.loads(raw,parse_float=Decimal) if raw is not None else None
@@ -94,6 +95,30 @@ def journal(raw):
   if len(bodies)>100000:raise ValueError('JOURNAL_RECORD_LIMIT')
  return bodies,dict(framing)
 
+def summarize_directory(a,directory,limit=20000):
+ p=a.path(directory)
+ if not p.is_dir():return {'status':'MISSING_OR_EMPTY','scanned_file_count':0}
+ counters={};scanned=0;encountered=0;issues=[]
+ for f in p.glob('*.json'):
+  encountered+=1
+  if scanned>=limit:
+   issues.append({'source':directory,'reason':'DIRECTORY_FILE_LIMIT','configured_file_limit':limit});break
+  rel=str(f.relative_to(a.root))
+  try:
+   value=a.json(rel);summary=summarize_json(value)
+  except (ValueError,TypeError,OSError) as exc:
+   issues.append({'source':rel,'reason':reason(exc)})
+   if reason(exc)=='TOTAL_READ_LIMIT':break
+   # Stop this directory rather than omitting arbitrarily many invalid records.
+   break
+  scanned+=1
+  for key,values in summary.items():
+   if isinstance(values,dict):counters.setdefault(key,Counter()).update(values)
+ return {'status':'PARTIAL_DIRECTORY_INSPECTION' if issues else 'READ' if scanned else 'MISSING_OR_EMPTY',
+         'scanned_file_count':scanned,'encountered_file_count':encountered,'configured_file_limit':limit,
+         'issues':issues,**{k:dict(v) for k,v in counters.items()},
+         'semantics':'AGGREGATED_OBJECT_COUNTS_NOT_UNIQUE_TRADES; NO_PARENT_QUOTE_INHERITANCE; NO_CURRENCY_ASSIGNED'}
+
 def audit(root):
  a=Audit(root);report={'validation':'A24_CURRENCY_MATURATION_DOUBLE_CHECK_READ_ONLY','source_code_contracts':code_contract(a),'sections':{}}
  market=a.raw('data/database/market_daily.csv');rows=list(csv.DictReader(io.StringIO(market.decode('utf-8-sig'),newline=''))) if market is not None else []
@@ -139,11 +164,9 @@ def audit(root):
    report.setdefault('issues',[]).append({'source':rel,'reason':reason(exc)})
  # Observe additional maturity tracks without executing their reconciliators.
  for directory in ('data/brain/shadow/outcomes','data/brain/prospective/buy_forecasts','data/brain/prospective/buy_outcome_joins'):
-  p=a.path(directory);files=sorted(p.glob('*.json')) if p.is_dir() else []
-  if len(files)>2000:raise ValueError('DIRECTORY_FILE_LIMIT')
-  combined=[]
-  for f in files:combined.append(a.json(str(f.relative_to(a.root))))
-  report['sections'][directory]={'status':'READ' if files else 'MISSING_OR_EMPTY','file_count':len(files),**summarize_json(combined)}
+  summary=summarize_directory(a,directory)
+  report['sections'][directory]=summary
+  for issue in summary.get('issues',[]):report.setdefault('issues',[]).append(issue)
  stable=a.stable();report.update(status=('PARTIAL_INSPECTION_NOT_CERTIFIED' if report.get('issues') else 'INSPECTED_NOT_CERTIFIED') if stable else 'SOURCE_CHANGED_RETRY_REQUIRED',source_files_stable_during_read=stable,
   project_mutation=False,financial_values_exported=False,training_requested=False,services_restarted=False,currency_attribution_performed=False,canonical_publication_authorized=False,
   limitations=['CURRENT_CODE_CONTRACT_IS_NOT_HISTORICAL_ATTESTATION','NO_SYMBOL_TO_CANONICAL_IDENTITY_BINDING','ACCOUNT_CURRENCY_AND_QUOTE_CURRENCY_ARE_DIFFERENT','SCANNED_PATHS_ONLY_NOT_ALL_SNAPSHOT_HISTORY'])

@@ -56,4 +56,20 @@ class Audit(unittest.TestCase):
   self.fixture();self.write('results/latest.json',{'quote_currency':'EUR','price':123});self.write('results/p35e_research_forecast_issuance.jsonl','{}');r=m.audit(self.root);self.assertEqual(r['status'],'PARTIAL_INSPECTION_NOT_CERTIFIED');self.assertEqual(r['market']['row_count'],2);self.assertIn('results/latest.json',r['sections'])
  def test_error_reason_never_exports_arbitrary_exception_text(self):
   self.assertEqual(m.reason(ValueError('SECRET-CONTENT')),'ValueError');self.assertEqual(m.reason(ValueError('SOURCE_SIZE_LIMIT')),'SOURCE_SIZE_LIMIT')
+ def test_directory_over_old_2000_limit_streams_all(self):
+  directory='data/brain/shadow/outcomes'
+  for n in range(2001):self.write(directory+'/'+str(n)+'.json',{'status':'MATURED','quote_currency':'EUR'})
+  out=m.summarize_directory(m.Audit(self.root),directory);self.assertEqual(out['status'],'READ');self.assertEqual(out['scanned_file_count'],2001);self.assertEqual(out['stored_matured_status_counts']['objects_with_stored_matured_status'],2001)
+ def test_directory_budget_returns_explicit_partial_counts(self):
+  directory='data/brain/shadow/outcomes'
+  for n in range(3):self.write(directory+'/'+str(n)+'.json',{'status':'MATURED','quote_currency':'EUR'})
+  out=m.summarize_directory(m.Audit(self.root),directory,limit=2);self.assertEqual(out['status'],'PARTIAL_DIRECTORY_INSPECTION');self.assertEqual(out['scanned_file_count'],2);self.assertEqual(out['issues'][0]['reason'],'DIRECTORY_FILE_LIMIT')
+ def test_directory_bad_file_keeps_global_results(self):
+  self.fixture();self.write('data/brain/shadow/outcomes/bad.json','not-json');out=m.audit(self.root);self.assertEqual(out['status'],'PARTIAL_INSPECTION_NOT_CERTIFIED');self.assertEqual(out['market']['row_count'],2);self.assertTrue(out['episode_market_cross_check']);self.assertEqual(out['issues'][0]['reason'],'JSONDecodeError')
+ def test_directory_summaries_match_combined_object_counts(self):
+  directory='data/brain/shadow/outcomes';values=[{'status':'MATURED','quote_currency':'EUR'},{'assets':[{'currency':'BRL','price_eur':2}]}]
+  for n,value in enumerate(values):self.write(directory+'/'+str(n)+'.json',value)
+  out=m.summarize_directory(m.Audit(self.root),directory);expected=m.summarize_json(values)
+  for key,val in expected.items():
+   if isinstance(val,dict):self.assertEqual(out.get(key,{}),val)
 if __name__=='__main__':unittest.main()
