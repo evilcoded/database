@@ -30,8 +30,30 @@ class Audit(unittest.TestCase):
   self.write('results/latest.json',{'scores':[{'instrument_id':'BR:B3:BDR:AAPL34','quote_currency':'BRL','price':1}]});s=m.audit(self.root)['sections']['results/latest.json'];self.assertEqual(s['explicit_identity_scope_object_counts'],{'BRAZIL_EXPLICIT_ID_PREFIX':1})
  def test_partial_journal_refused(self):
   self.write('results/p35e_research_forecast_issuance.jsonl','{}')
-  with self.assertRaisesRegex(ValueError,'PARTIAL'):m.audit(self.root)
+  r=m.audit(self.root);self.assertEqual(r['status'],'PARTIAL_INSPECTION_NOT_CERTIFIED');self.assertEqual(r['issues'][0]['reason'],'PARTIAL_JOURNAL_LINE')
  def test_symlink_refused(self):
   target=self.write('outside.json',{});p=self.root/'results';p.mkdir();(p/'latest.json').symlink_to(target)
   with self.assertRaisesRegex(ValueError,'SYMLINK'):m.audit(self.root)
+ def record(self,body,previous='GENESIS'):
+  import hashlib
+  h=hashlib.sha256((previous+'|'+json.dumps(body,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False)).encode()).hexdigest()
+  return json.dumps({'body':body,'previous_hash':previous,'hash':h}),h
+ def test_standard_lf_journal(self):
+  text,h=self.record({'quote_currency':'EUR'});rows,f=m.journal((text+'\n').encode());self.assertEqual(f,{'LF':1});self.assertEqual(rows[0]['quote_currency'],'EUR')
+ def test_legacy_literal_separator_journal(self):
+  text,h=self.record({'quote_currency':'EUR'});second,_=self.record({'quote_currency':'BRL'},h);rows,f=m.journal((text+'\\n'+second+'\\n').encode());self.assertEqual(len(rows),2);self.assertEqual(f,{'LEGACY_LITERAL_BACKSLASH_N':2})
+ def test_escaped_newline_inside_body_not_replaced(self):
+  body={'note':'literal \\n and actual \n newline'};text,h=self.record(body);rows,_=m.journal((text+'\\n').encode());self.assertEqual(rows,[body])
+ def test_wrong_chain_not_accepted(self):
+  text,h=self.record({'quote_currency':'EUR'});obj=json.loads(text);obj['hash']='wrong'
+  with self.assertRaisesRegex(ValueError,'CHAIN'):m.journal((json.dumps(obj)+'\n').encode())
+ def test_unknown_separator_refused(self):
+  text,h=self.record({})
+  with self.assertRaisesRegex(ValueError,'FRAMING'):m.journal((text+'junk').encode())
+ def test_crlf_journal(self):
+  text,h=self.record({});rows,f=m.journal((text+'\r\n').encode());self.assertEqual(f,{'CRLF':1})
+ def test_partial_journal_does_not_hide_snapshot_results(self):
+  self.fixture();self.write('results/latest.json',{'quote_currency':'EUR','price':123});self.write('results/p35e_research_forecast_issuance.jsonl','{}');r=m.audit(self.root);self.assertEqual(r['status'],'PARTIAL_INSPECTION_NOT_CERTIFIED');self.assertEqual(r['market']['row_count'],2);self.assertIn('results/latest.json',r['sections'])
+ def test_error_reason_never_exports_arbitrary_exception_text(self):
+  self.assertEqual(m.reason(ValueError('SECRET-CONTENT')),'ValueError');self.assertEqual(m.reason(ValueError('SOURCE_SIZE_LIMIT')),'SOURCE_SIZE_LIMIT')
 if __name__=='__main__':unittest.main()

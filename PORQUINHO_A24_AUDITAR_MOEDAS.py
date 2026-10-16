@@ -8,14 +8,16 @@ MAX=64*1024*1024
 def label(x):return x if isinstance(x,str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,120}',x) else 'UNSPECIFIED'
 def currency(x):return x if isinstance(x,str) and x.isascii() and x.isalpha() and x.isupper() and len(x)<=16 else None
 class Audit:
- def __init__(self,root):self.root=Path(root).resolve(strict=True);self.seen={};self.total=0
+ last_source=None
+ def __init__(self,root):self.root=Path(root).resolve(strict=True);self.seen={};self.total=0;self.current_source=None
  def path(self,rel):
+  Audit.last_source=str(rel)
   p=self.root/rel
   if p.is_symlink() or any(a.is_symlink() for a in p.parents if a!=self.root.parent):raise ValueError('SYMLINK_REFUSED')
   if not p.resolve().is_relative_to(self.root):raise ValueError('OUTSIDE_ROOT')
   return p
  def raw(self,rel):
-  p=self.path(rel)
+  self.current_source=str(rel);p=self.path(rel)
   if not p.is_file():return None
   if p.stat().st_size>MAX:raise ValueError('SOURCE_SIZE_LIMIT')
   raw=p.read_bytes();self.total+=len(raw)
@@ -69,6 +71,29 @@ def code_contract(a):
   out[rel]={'sha256':hashlib.sha256(raw).hexdigest(),'literal_eur_request_dictionary_count':eur_requests,'default_quote_eur_branch_present':default_eur,'legacy_price_eur_reads_present':read_legacy,'historical_row_provenance_proven':False}
  return out
 
+
+REASONS={'SYMLINK_REFUSED','OUTSIDE_ROOT','SOURCE_SIZE_LIMIT','TOTAL_READ_LIMIT','JSON_NODE_LIMIT','DIRECTORY_FILE_LIMIT','PARTIAL_JOURNAL_LINE','JOURNAL_BODY_INVALID','JOURNAL_CHAIN_INVALID','JOURNAL_RECORD_LIMIT','JOURNAL_FRAMING_INVALID'}
+def reason(exc):
+ return str(exc) if type(exc) is ValueError and str(exc) in REASONS else type(exc).__name__
+
+def journal(raw):
+ text=raw.decode('utf-8');decoder=json.JSONDecoder();pos=0;previous='GENESIS';bodies=[];framing=Counter()
+ while pos<len(text):
+  while pos<len(text) and text[pos] in ' \t\r\n':pos+=1
+  if pos==len(text):break
+  item,end=decoder.raw_decode(text,pos)
+  if text.startswith('\r\n',end):pos=end+2;framing['CRLF']+=1
+  elif text.startswith('\n',end):pos=end+1;framing['LF']+=1
+  elif text.startswith('\\n',end):pos=end+2;framing['LEGACY_LITERAL_BACKSLASH_N']+=1
+  elif end==len(text):raise ValueError('PARTIAL_JOURNAL_LINE')
+  else:raise ValueError('JOURNAL_FRAMING_INVALID')
+  if not isinstance(item,dict) or not isinstance(item.get('body'),dict):raise ValueError('JOURNAL_BODY_INVALID')
+  body=item['body'];expected=hashlib.sha256((previous+'|'+json.dumps(body,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False)).encode()).hexdigest()
+  if item.get('previous_hash')!=previous or item.get('hash')!=expected:raise ValueError('JOURNAL_CHAIN_INVALID')
+  previous=expected;bodies.append(body)
+  if len(bodies)>100000:raise ValueError('JOURNAL_RECORD_LIMIT')
+ return bodies,dict(framing)
+
 def audit(root):
  a=Audit(root);report={'validation':'A24_CURRENCY_MATURATION_DOUBLE_CHECK_READ_ONLY','source_code_contracts':code_contract(a),'sections':{}}
  market=a.raw('data/database/market_daily.csv');rows=list(csv.DictReader(io.StringIO(market.decode('utf-8-sig'),newline=''))) if market is not None else []
@@ -106,15 +131,12 @@ def audit(root):
  for rel in ('results/p35e_research_forecast_issuance.jsonl','results/p35h_capture_context.jsonl'):
   raw=a.raw(rel)
   if raw is None:report['sections'][rel]={'status':'MISSING'};continue
-  previous='GENESIS';bodies=[]
-  for line in raw.decode('utf-8').splitlines(keepends=True):
-   if not line.endswith('\n'):raise ValueError('PARTIAL_JOURNAL_LINE')
-   item=json.loads(line);body=item.get('body')
-   if not isinstance(body,dict):raise ValueError('JOURNAL_BODY_INVALID')
-   expected=hashlib.sha256((previous+'|'+json.dumps(body,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False)).encode()).hexdigest()
-   if item.get('previous_hash')!=previous or item.get('hash')!=expected:raise ValueError('JOURNAL_CHAIN_INVALID')
-   previous=expected;bodies.append(body)
-  report['sections'][rel]={'status':'LOCAL_CHAIN_VERIFIED_NOT_INDEPENDENT_ATTESTATION','record_count':len(bodies),**summarize_json(bodies)}
+  try:
+   bodies,framing=journal(raw)
+   report['sections'][rel]={'status':'LOCAL_CHAIN_VERIFIED_NOT_INDEPENDENT_ATTESTATION','record_count':len(bodies),'separator_counts':framing,**summarize_json(bodies)}
+  except (ValueError,TypeError,KeyError) as exc:
+   report['sections'][rel]={'status':'JOURNAL_NOT_VERIFIED','error_type':type(exc).__name__,'reason':reason(exc),'source_modified':False}
+   report.setdefault('issues',[]).append({'source':rel,'reason':reason(exc)})
  # Observe additional maturity tracks without executing their reconciliators.
  for directory in ('data/brain/shadow/outcomes','data/brain/prospective/buy_forecasts','data/brain/prospective/buy_outcome_joins'):
   p=a.path(directory);files=sorted(p.glob('*.json')) if p.is_dir() else []
@@ -122,7 +144,7 @@ def audit(root):
   combined=[]
   for f in files:combined.append(a.json(str(f.relative_to(a.root))))
   report['sections'][directory]={'status':'READ' if files else 'MISSING_OR_EMPTY','file_count':len(files),**summarize_json(combined)}
- stable=a.stable();report.update(status='INSPECTED_NOT_CERTIFIED' if stable else 'SOURCE_CHANGED_RETRY_REQUIRED',source_files_stable_during_read=stable,
+ stable=a.stable();report.update(status=('PARTIAL_INSPECTION_NOT_CERTIFIED' if report.get('issues') else 'INSPECTED_NOT_CERTIFIED') if stable else 'SOURCE_CHANGED_RETRY_REQUIRED',source_files_stable_during_read=stable,
   project_mutation=False,financial_values_exported=False,training_requested=False,services_restarted=False,currency_attribution_performed=False,canonical_publication_authorized=False,
   limitations=['CURRENT_CODE_CONTRACT_IS_NOT_HISTORICAL_ATTESTATION','NO_SYMBOL_TO_CANONICAL_IDENTITY_BINDING','ACCOUNT_CURRENCY_AND_QUOTE_CURRENCY_ARE_DIFFERENT','SCANNED_PATHS_ONLY_NOT_ALL_SNAPSHOT_HISTORY'])
  if not stable:report={'validation':report['validation'],'status':'SOURCE_CHANGED_RETRY_REQUIRED','project_mutation':False}
@@ -137,5 +159,5 @@ if __name__=='__main__':
   if event in {'os.remove','os.rename','os.mkdir','os.rmdir','os.chmod','os.truncate','os.link','os.symlink','subprocess.Popen','os.system','socket.connect','socket.bind'}:raise RuntimeError('READ_ONLY_SIDE_EFFECT_REFUSED')
  sys.addaudithook(guard)
  try:out=audit(root)
- except Exception as exc:out={'validation':'A24_CURRENCY_MATURATION_DOUBLE_CHECK_READ_ONLY','status':'INSPECTION_NOT_COMPLETED','error_type':type(exc).__name__,'project_mutation':False}
+ except Exception as exc:out={'validation':'A24_CURRENCY_MATURATION_DOUBLE_CHECK_READ_ONLY','status':'INSPECTION_NOT_COMPLETED','error_type':type(exc).__name__,'reason':reason(exc),'source':Audit.last_source,'project_mutation':False}
  print(json.dumps(out,ensure_ascii=False,indent=2))
