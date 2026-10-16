@@ -4,7 +4,7 @@ O patch adiciona uma ficha HTML offline para revisar os pares realmente solicita
 
 ## Instalação e histórico
 
-O instalador exige as versões verificadas dos patches anteriores, testa 349 casos numa cópia temporária de fontes e adiciona apenas três arquivos novos. Cria backup/manifesto e recusa divergências. Não modifica snapshots, journals, mercado legado, modelos, dados de aprendizagem ou resultados maturados. Não reinicia serviços. Ao final exporta uma nova pasta privada em Downloads, sem sobrescrever fichas anteriores.
+O instalador exige as versões verificadas dos patches anteriores, testa 351 casos numa cópia temporária de fontes e adiciona apenas três arquivos novos. Cria backup/manifesto e recusa divergências. Não modifica snapshots, journals, mercado legado, modelos, dados de aprendizagem ou resultados maturados. Não reinicia serviços. Ao final exporta uma nova pasta privada em Downloads, sem sobrescrever fichas anteriores.
 
 ## Revisão
 
@@ -27,4 +27,8 @@ Isso não aplica vínculos. O documento preparado é compatível com o importado
 
 ## Verificação
 
-349 testes Python aprovados com pandas 2.2.3 e 3.0.3. Instalador: aplicação, repetição idempotente, recusa de baseline divergente e preservação de arquivo sentinela. JavaScript da ficha exercitado em Node com DOM simulado: nenhuma seleção não exporta; caso preenchido e confirmado exporta decisões aceitas pelo preparador Python. Exportação real HTML/JSON exercitada sob o mesmo audit hook do instalador. Não foi realizada validação num navegador macOS nem com fontes externas reais.
+351 testes Python aprovados com pandas 2.2.3 e 3.0.3. Instalador: aplicação, repetição idempotente, recusa de baseline divergente e preservação de arquivo sentinela. JavaScript da ficha exercitado em Node com DOM simulado: nenhuma seleção não exporta; caso preenchido e confirmado exporta decisões aceitas pelo preparador Python. Exportação real HTML/JSON exercitada sob o mesmo audit hook do instalador. Não foi realizada validação num navegador macOS nem com fontes externas reais.
+
+## Correção V2 de compatibilidade macOS
+
+Os testes resolvem o caminho temporário de /var para /private/var antes de exportar. A proteção de produção contra links simbólicos não foi alterada. Dois testes adicionais verificam exportação após resolução e recusa do link não resolvido. A suíte completa também passou com TMPDIR apontando para um alias por link simbólico no Linux; isso não substitui a execução no Mac. O instalador anterior que falhou na validação não aplicou fontes. Use o arquivo V2, que tem nome próprio e preserva o download anterior.
