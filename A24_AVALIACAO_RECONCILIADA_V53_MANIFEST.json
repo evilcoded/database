@@ -1,0 +1,16 @@
+{
+  "files": {
+    "universal_portfolio/universal_cockpit_a24.py": {
+      "before_sha256": "9155e7174711a88d29119fc55f50bdf9f546f0e8de8ca5cfadbbaac39c24b9c6",
+      "after_sha256": "4474f627a1edd3856ae996aa7075bdb46e0721b4fad6a144e0a87f47ff3d0637"
+    },
+    "universal_portfolio/monitor_consolidation_a24.py": {
+      "before_sha256": "0401db215adb9a66913fbd827917e228f4f3cbca26e7b0b4a098a1f553653371",
+      "after_sha256": "ba44e925413997c75ef27eadb8852c3d0f7cce181c353a420df916ad2256f871"
+    }
+  },
+  "runtime_restarted": false,
+  "models_or_history_modified": false,
+  "network_requests_during_install": 0,
+  "scope": "READ_ONLY_REVIEWED_REFERENCE_VALUATION"
+}
