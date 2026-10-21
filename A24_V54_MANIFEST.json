@@ -1,0 +1,14 @@
+{
+  "static/balance_accounts_v41.js": {
+    "before": "72c5ee65719c4be16ebcdbc927e654fd706c39a6b588036ae097666c7afdaddf",
+    "after": "c8e0d3345b7dc68e34ee4f2de0b0a0167a84f3b36ab3e806073d572775d7295f"
+  },
+  "universal_portfolio/cockpit_intraday_a24.py": {
+    "before": "39dd24675cf33fef24011cae7a445ba4847143207fc3e7ea0a9417a9db0464db",
+    "after": "441183c7b3516fa6aaf5132468d808042f6a8720f6c42d2d24aa302c93ccfebe"
+  },
+  "universal_portfolio/experience_panels_a24.py": {
+    "before": "6de5cd01532fae85afe0b1376adcb6486552e62a2c861021ec0ffe539b24ef85",
+    "after": "082576e59c0951dfb09648b5db175d7cb8aad9ca41d01982b4c88d439399102f"
+  }
+}
