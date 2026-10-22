@@ -1,0 +1,13 @@
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const root=process.argv[2];
+let setup=fs.readFileSync(path.join(root,'tests/test_a24_experience_panels_ui.js'),'utf8').split('let count=0;')[0];
+const {ctx,vm}=new Function('require','process',setup+'return {ctx,vm};')(require,process);
+ctx.setInterval=()=>0;ctx.document.querySelectorAll=()=>[];ctx.document.querySelector=()=>null;
+for(const name of ['blue_experience_v38.js','universal_polish_v39.js','intraday_dashboard_v40.js','balance_accounts_v41.js'])vm.runInContext(fs.readFileSync(path.join(root,'static',name),'utf8'),ctx);
+const run=s=>vm.runInContext(s,ctx);
+run("a24MonitorData=data;a24CockpitState.currency='BRL';a24CockpitState.account='';data.analysis_coverage={schema:'porquinho.analysis-coverage-a24/1.0',status:'EXISTING_RESEARCH_STATES_PROJECTED',execution_authorized:false,rows:[{instrument_id:'PETR-EXACT-ID',account_id:'A',currency:'BRL',observation_count:1268,research_status:'RESEARCH_FORECAST_COMPUTED_NOT_VALIDATED'}]}");
+let html=run("v35Render('dashboard',data)");
+assert.equal((html.match(/<h2>Dados e análises dos planos<\/h2>/g)||[]).length,1);
+assert.ok(html.includes('PETR-EXACT-ID'));assert.ok(html.includes('1268 observações'));assert.ok(html.includes('Não publicada neste fluxo'));
+run('delete data.analysis_coverage');html=run("v35Render('dashboard',data)");assert.ok(html.includes('Dados e análises dos planos'));assert.ok(html.includes('ainda não estão disponíveis'));
+console.log('FULL_DASHBOARD_CHAIN_V37_TO_V41_COVERAGE_VISIBLE_OK');
