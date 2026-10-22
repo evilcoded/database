@@ -1,0 +1,13 @@
+# Comparação líquida condicional com preservar o caixa — V89
+
+Acrescenta o cálculo econômico por variante de custos já revisados: variação bruta do investimento menos custos de execução e de manutenção menos ganho líquido estimado do caixa. Retorna a diferença e o ponto de equilíbrio dos custos de execução. Resultado aritmético positivo não é seleção de vencedor nem validação dos modelos.
+
+Integração: cash_execution_cost_projection reutiliza o cálculo de custos existente e acrescenta cash_counterfactual_comparison a cada variante. O transporte dos cenários preserva funding_context_fingerprint já validado. O monitor lê, quando produzido, data/cash_counterfactual_models_a24.json, schema porquinho.cash-counterfactual-models-a24/1.0, lista models. Não cria esse arquivo nem inventa suas estimativas.
+
+Cada modelo da lista deve ter schema porquinho.cash-counterfactual-model-a24/1.0, status EXPLICIT_CASH_RETURN_ESTIMATE, conta, moeda, plano, orçamento, horizonte e capital correspondentes, context_fingerprint, source_ref/model_ref/model_version, computed_at e review_until com fuso. expected_net_change deve modelar os custos/tributos do caixa (cash_cost_coverage=NET_OF_MODELLED_CASH_COSTS_AND_TAXES). investment_carrying_cost_status e investment_carrying_cost devem declarar os custos adicionais da proposta; desconhecidos não são zero. execution_authorized permanece false. São declarações de modelo, não certificação independente. Ausência ou ambiguidade de modelo impede cálculo; não se escolhe uma fonte arbitrária.
+
+O modelo de rendimento do caixa ainda não é produzido automaticamente por este patch. A informação de que o dinheiro está disponível para investir não prova rendimento zero e não foi convertida em uma regra por banco. Tampouco este patch preenche custos ainda desconhecidos. Portanto, com essas entradas ausentes, não haverá comparação numérica no ambiente real. A implementação torna o cálculo e seu consumo disponíveis; completar os produtores de entradas, validação, política de decisão, dimensionamento e publicação continua pendente.
+
+Não ajusta por risco, não agrega moedas, não converte observações em dias, não altera algoritmos ou pesos e não modifica dados/modelos. Referência de capital não vira ordem. net_advantage_vs_preserving_cash aparece por variante; o campo global não escolhe variante nem ganhador.
+
+162 testes passaram, incluindo aritmética, vantagem negativa, zero explicitamente informado, ausência/ambiguidade, escopo, prazo, capital e preservação de entradas. Instalador testado em repetição e base divergente. Adiciona um módulo e altera três adaptadores, com backup e checagem integral antes de substituir. Reiniciar somente o Porquinho depois da conclusão do ciclo. Nenhum arquivo de brain/ é substituído.
