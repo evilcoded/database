@@ -1,0 +1,12 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync(process.argv[2]+'/static/experience_panels_v37.js','utf8');
+const fn=source.slice(source.indexOf('function v80AnalysisCoverage('),source.indexOf('function v37Dashboard('));
+const ctx={currency:'BRL',account:'',esc:s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x])),a24UiAccount:(a,q)=>a+' '+q,a24UiSearch:()=>true};
+ctx.a24UiScope=r=>(!ctx.currency||r.currency===ctx.currency)&&(!ctx.account||r.account_id===ctx.account);
+vm.createContext(ctx);vm.runInContext(fn,ctx);
+const data={analysis_coverage:{schema:'porquinho.analysis-coverage-a24/1.0',execution_authorized:false,status:'EXISTING_RESEARCH_STATES_PROJECTED',rows:[{instrument_id:'BR:ID',account_id:'A',currency:'BRL',observation_count:1268,source_date:'2026-10-21',source_kind:'LOCAL_RECOVERED_AND_PROVIDER_HISTORY_COMPOSITION',research_status:'RESEARCH_FORECAST_COMPUTED_NOT_VALIDATED',expected_gain:999999},{instrument_id:'EUR:ID',account_id:'B',currency:'EUR',observation_count:85,research_status:'INSUFFICIENT_HISTORY_FOR_RESEARCH_FIT'}]}};
+ctx.data=data;const render=()=>vm.runInContext('v80AnalysisCoverage(data)',ctx);
+let h=render();assert.ok(h.includes('1268 observações'));assert.ok(!h.includes('EUR:ID'));assert.ok(h.includes('Não publicada neste fluxo'));assert.ok(!h.includes('999999'));assert.ok(h.includes('moeda histórica não atestada'));
+ctx.account='B';assert.ok(!render().includes('BR:ID'));ctx.account='';ctx.currency='EUR';assert.ok(render().includes('Histórico insuficiente'));assert.ok(!render().includes('BR:ID'));
+ctx.currency='BRL';data.analysis_coverage.rows[0].instrument_id='<script>bad</script>';h=render();assert.ok(!h.includes('<script>'));assert.ok(h.includes('&lt;script&gt;'));
+console.log('ANALYSIS_COVERAGE_UI_SCOPE_AND_AUTHORITY_OK');

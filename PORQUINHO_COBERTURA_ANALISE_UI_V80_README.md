@@ -1,0 +1,11 @@
+# Cobertura da análise na UI V80
+
+Adiciona ao Dashboard o painel Dados e análises dos planos. A projeção associa os pedidos já transportados por conta/moeda/identidade aos estados do laboratório global. Não usa ticker como identidade, não soma moedas e não escolhe uma fonte arbitrariamente quando há múltiplos resultados. Fonte indisponível é desconhecida, não zero. Histórico e estado de análise são apresentados por alternativa, sem tratá-la como posição financeira.
+
+O resumo mostra quantidade de alternativas com histórico e previsões de pesquisa, com detalhes recolhidos para não ampliar excessivamente o Dashboard. Exibe número de observações, última data histórica, espera por processamento, insuficiência, desatualização, fonte não vinculada ou previsão de pesquisa produzida e não validada. Identifica composições de arquivo recuperado e fonte atual como moeda histórica não atestada. Respeita filtros de conta, moeda e pesquisa; nomes vêm de catálogo por identidade exata e são escapados para HTML.
+
+Valores de carteira continuam nos cartões e gráficos existentes, com a política de cobertura parcial; o painel novo não cria avaliação para CDB sem dados e não transforma cotações do universo pesquisado em patrimônio. Previsões e histórico não são saldo, P/L ou recomendação final. A projeção informa explicitamente que não transportou recomendação final e que o estado de pesquisa não comprova validação da decisão. Não cria sinal, sizing, meta, ordem ou autorização.
+
+Não altera cálculos do laboratório, aprendizados, modelos, horizontes, pesos ou requisitos. O ajuste em global_research_lab_a24 afeta somente metadados do resumo de fontes e processamento. Monitor expõe analysis_coverage junto das projeções já existentes. A validação operacional final das recomendações brasileiras e a avaliação completa das posições financeiras ainda precisam ser confirmadas nos seus produtores e fontes; o patch dá visibilidade dessa diferença, não declara o fluxo concluído.
+
+Validação: 86 testes Python de projeção, monitor, painéis e laboratório; testes JS de filtros, moedas, ausência de promoção de pesquisa e escaping, mais 12 regressões de interface; sintaxe JavaScript e instalador/idempotência verificados. Rede e dados reais não usados nos testes. Reiniciar após trabalhos concluídos e atualizar navegador com recarga completa.
