@@ -15,10 +15,10 @@ class Tests(unittest.TestCase):
  def fetch(self,url,*args,**kw):return self.listing if '/list' in url else self.quote
  def test_checked_and_preserves_existing_financial_files(self):
   self.write('data/positions.json',{'unchanged':True});before=(self.root/'data/positions.json').read_bytes()
-  r=discover(self.root,now=NOW,fetcher=self.fetch);out=apply(self.root,r,now=NOW)
+  r=discover(self.root,now=NOW,fetcher=self.fetch,pause=lambda _:None);out=apply(self.root,r,now=NOW)
   self.assertEqual(out['added'],1);self.assertFalse(r['independent_attestation'])
   self.assertEqual(load(self.root)['bindings'][0]['provider_id'],'NEW3');self.assertEqual((self.root/'data/positions.json').read_bytes(),before)
-  self.assertEqual(apply(self.root,discover(self.root,now=NOW,fetcher=self.fetch),now=NOW)['added'],0)
+  self.assertEqual(apply(self.root,discover(self.root,now=NOW,fetcher=self.fetch,pause=lambda _:None),now=NOW)['added'],0)
  def test_class_not_inferred_from_ticker(self):
   self.listing['stocks'][0]['type']='bdr';self.assertEqual(check(self.row,self.listing,self.quote,now=NOW)[0],'SOURCE_CLASS_MISMATCH')
  def test_currency_mismatch(self):
@@ -31,12 +31,12 @@ class Tests(unittest.TestCase):
   for value in ['2027-01-01T00:00:00Z','2026-01-01T00:00:00Z',None]:
    self.quote['results'][0]['regularMarketTime']=value;self.assertIsNone(check(self.row,self.listing,self.quote,now=NOW)[1])
  def test_no_retroactive_route(self):
-  r=discover(self.root,now=NOW,fetcher=self.fetch);apply(self.root,r,now=NOW)
+  r=discover(self.root,now=NOW,fetcher=self.fetch,pause=lambda _:None);apply(self.root,r,now=NOW)
   self.assertEqual(load(self.root)['bindings'][0]['effective_from'],NOW.date().isoformat())
  def test_catalog_change_cancels(self):
-  r=discover(self.root,now=NOW,fetcher=self.fetch);self.write('data/universal_instrument_catalog.json',{'instruments':[]})
+  r=discover(self.root,now=NOW,fetcher=self.fetch,pause=lambda _:None);self.write('data/universal_instrument_catalog.json',{'instruments':[]})
   with self.assertRaises(ValueError):apply(self.root,r,now=NOW)
   self.assertEqual(load(self.root)['bindings'],[])
  def test_errors_redacted(self):
   def fail(*a,**kw):raise RuntimeError('SECRET')
-  r=discover(self.root,now=NOW,fetcher=fail);self.assertNotIn('SECRET',str(r));self.assertEqual(apply(self.root,r,now=NOW)['added'],0)
+  r=discover(self.root,now=NOW,fetcher=fail,pause=lambda _:None);self.assertNotIn('SECRET',str(r));self.assertEqual(apply(self.root,r,now=NOW)['added'],0)
