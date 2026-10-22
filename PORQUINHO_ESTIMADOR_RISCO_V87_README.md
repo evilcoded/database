@@ -1,0 +1,13 @@
+# Estimador separado de risco da previsão — V87
+
+Implementa um componente numérico novo e isolado, sem substituir a previsão de retorno, o risco histórico ou os modelos do Brain. O adaptador research_economic_components acrescenta forward_risk_estimate ao pacote; action_research_handoff transporta esse campo separadamente. Os cinco componentes legados e seus validation_status são preservados.
+
+Método PURGED_FORECAST_RESIDUAL_DISJOINT_EMPIRICAL_V1: usa os resíduos dos folds fora do treino já calculados pelo laboratório. Seleciona uma sequência temporal fixa com janelas sem sobreposição nem endpoint compartilhado; usa somente resultados terminados estritamente antes da origem da previsão. Soma esses resíduos à previsão atual e calcula RMS dos retornos negativos do conjunto de cenários. Registra frequência de cenários negativos e extremos observados. Não são limites de perda nem probabilidades certificadas.
+
+A hipótese explícita é que erros anteriores aproximam o erro da previsão atual; mudanças de regime podem invalidá-la. Não se afirma independência estatística, disponibilidade histórica da fonte ou validação prospectiva. Requer pelo menos dois resíduos maduros para produzir a estimativa; isso não é um tempo de espera obrigatório para investir. Retornos projetados menores que -100% são recusados, sem clipping silencioso ou risco zero substituto.
+
+A qualidade da distribuição é medida retrospectivamente por CRPS, em cada origem usando somente resíduos já maduros, e comparada à distribuição de retornos históricos anteriores. Não há limiar automático de aprovação. O método usa o horizonte explícito em OBSERVATIONS do modelo atual; não o converte em dias nem implementa ainda a expansão a 30/60/90/120 dias.
+
+Integração: pacotes novos são gravados pelo produtor já existente em caminhos derivados de seu conteúdo. Pacotes antigos permanecem preservados. A API monitor-consolidation expõe research_economic_components.forward_risk_status_counts. O estimador não cria negociações, dimensionamento ou recomendações e não muda os bloqueios existentes para validado. É implementação de uma estimativa ausente, ainda não o motor completo de recomendações.
+
+143 testes passaram, incluindo cálculo numérico conhecido, CRPS, geometria temporal, rejeição de fonte/resultado divergente, preservação do aprendizado, integração e regressões de decisão. Instalador testado em repetição e base divergente. Altera somente dois adaptadores e adiciona forward_risk_estimator_a24.py. Nenhum arquivo em brain/ é substituído; dados e modelos não são editados pelo instalador. Reinicie somente o Porquinho depois de terminar o ciclo.
