@@ -1,0 +1,10 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const root=process.argv[2]||process.cwd(),s=fs.readFileSync(root+'/static/experience_panels_v37.js','utf8');
+const code=s.slice(s.indexOf('function v111CashResearchStatus'),s.indexOf('function v58ScopedCandidates'));
+const c=vm.createContext({});vm.runInContext(code,c);
+c.context={research_enabled:true,research_context_status:'MARKET_RESEARCH_ONLY_CAPITAL_RECONCILIATION_PENDING'};
+const html=vm.runInContext('v111CashResearchStatus(context)',c);
+assert(html.includes('Pesquisa de mercado habilitada'));assert(html.includes('supera o caixa'));assert(html.includes('intenções registradas'));assert(html.includes('não representam capital disponível'));
+c.context={research_enabled:false};assert(vm.runInContext('v111CashResearchStatus(context)',c).includes('bloqueada'));
+assert(s.includes('${v111CashResearchStatus(c)}'));assert(s.includes('Orçamento conciliado:'));
+console.log('RESEARCH_PERMISSION_AND_SPENDING_CAPACITY_SEPARATE_UI_OK');
