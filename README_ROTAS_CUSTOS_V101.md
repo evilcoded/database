@@ -1,0 +1,13 @@
+# Route-specific documentary cost package V101
+
+Replaces the universal requirement for bank and exchange references on covered execution routes with explicit, revisable data policies. Preserves the existing equity/exchange pipeline as fallback; no model, training history, selection criterion or UI file is replaced.
+
+The German N26 public crypto page collected on 2026-10-23 documents Bitcoin's standard 1.5% commission and upward cent rounding. The policy is scoped to the registered Standard plan, DE, EUR, manual bank-app channel and the exact catalog Bitcoin identity. Other assets and plan discounts are not inferred. Source URL, byte hash and observation/recheck times are retained. A seven-day documentary recheck interval is not a guarantee of fee validity.
+
+The Nubank crypto contract documents OTC execution and transaction-time indicative pricing/tariffs, including applicable spread. It does not establish a numeric current fee. The BRL crypto route therefore reports a transaction-quote requirement, does not impose B3 fees, and does not infer zero cost from equities or add an assumed spread a second time. The public PDF tariff tables linked from these pages have not been read by this package.
+
+For a reconciled learned research allocation the engine calculates documented commission, gross research change less that component, reference debit and any shortfall versus reference capital. It does not resize the allocation. Full net change and advantage over preserving cash remain unknown: current quotes, availability, complete cost coverage, personal tax applicability, carrying costs and cash-yield modeling remain unresolved. Horizons are preserved as supplied; observations are not converted into calendar days.
+
+Source policies contain public institution/asset information, not private account identifiers. No credentials, execution authorization or recommendations are created. Runtime reads are bounded, symlinks are refused, changed inputs fail observably. Installer checks all existing file hashes before writes, backs up replaced files and supports repetition.
+
+Validation: ten route tests (including cent rounding, currency/source/class/policy conflicts, data-driven instrument selection, source expiry and OTC unknown costs), existing documentary/subtotal/filter regression checks, installer repeat/divergence checks. Replayed uploaded scenario amounts with session-established registry metadata and explicit crypto catalog classes: two N26 documentary projections and one Nubank quote-required result. Actual runtime scope matching remains to be checked on the user's installation.
