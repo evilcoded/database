@@ -1,0 +1,9 @@
+# V104 reuse the existing manual investment registration flow
+
+The position-link router previously offered only the specialized FI and B3-equity forms, returning UNSUPPORTED for crypto. Its crypto capability now advertises EXISTING_MANUAL_TRADE_FLOW, directing the UI to the existing r21386ls19aOpenManualTrade(accountId) form. This is an access/route correction, not a new financial writer or trading authorization.
+
+The existing form obtains currency from the selected account and uses the existing manual external-trade review/confirmation mechanism. No draft database, preparation store, API, model, ledger contract or balance mechanism is introduced. Specialized equity and fixed-income routes are unchanged. The exact instrument ID is preselected; if it is absent from the existing form's catalog, selection is cleared and review disabled rather than choosing an alias or a different asset. Missing class/market/identity and explicitly conflicting catalog identities remain unsupported.
+
+The UI explains that opening the form creates no ownership, cash reservation or order, and that review/confirmation is for already-executed purchases. It does not autofill quantities, a prior simulated quote, execution date, or any statement that a purchase happened. Existing preview/cost models and filter persistence are unchanged.
+
+Tests: five route/domain checks including BRL, EUR and USD drafts through the same existing boundary; twelve existing canonical manual-trade tests; UI exact-ID reuse/refusal and filter regression checks; installer preflight/repeat/divergence tests. No actual financial write or live BRL commit was performed. A successful opening or draft review is not proof that the whole governed production commit path supports a particular live purchase. Such errors must be surfaced and resolved in the existing flow, not bypassed.
