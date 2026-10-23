@@ -1,0 +1,15 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const root=process.env.PORQUINHO_TEST_ROOT||'/workspace/porquinho-a24/project';
+const code=fs.readFileSync(root+'/static/experience_panels_v37.js','utf8');
+const fn=code.slice(code.indexOf('function v115ManualRecommendations('),code.indexOf('function v37Insights('));
+const sandbox={lastStatus:null,a24CockpitState:{account:''},v35Currency:()=> 'BRL',a24UiSearch:()=>true,a24UiAccount:id=>id,a24UiMoney:(v,q)=>v+' '+q,esc:s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'),Date};
+vm.createContext(sandbox);vm.runInContext(fn,sandbox);
+const row=(q='BRL',account='BR_ACCOUNT')=>({valid_until:'2099-01-01T00:00:00Z',snapshot:{account_id:account,currency:q,action:'REALLOCATE',authority:'EVIDENCE_ONLY',execution_performed:false,financial_mutation:false,instrument_ref:'TEST:MKT:EQUITY:<script>',source_instrument_id:'SOURCE',destination_instrument_id:'DESTINATION',suggested_amount:850,horizon_unit:'OBSERVATIONS',horizon_value:30}});
+sandbox.lastStatus={manual_recommendation_publication:{schema:'porquinho.manual-recommendation-publication-a24/1.0',execution_authorized:false,financial_mutation:false,recommendations:[row(),row('EUR','EU_ACCOUNT')]}};
+let html=sandbox.v115ManualRecommendations({});assert(html.includes('Sugestões dimensionadas · 1'));assert(html.includes('SOURCE → DESTINATION'));assert(html.includes('850 BRL'));assert(!html.includes('EU_ACCOUNT'));
+sandbox.a24CockpitState.account='OTHER';assert(sandbox.v115ManualRecommendations({}).includes('Sugestões dimensionadas · 0'));
+sandbox.a24CockpitState.account='';sandbox.lastStatus.manual_recommendation_publication.recommendations[0].valid_until='2000-01-01T00:00:00Z';assert(sandbox.v115ManualRecommendations({}).includes('Sugestões dimensionadas · 0'));
+sandbox.lastStatus.manual_recommendation_publication.recommendations=[row()];sandbox.lastStatus.manual_recommendation_publication.recommendations[0].snapshot.action='SELL';html=sandbox.v115ManualRecommendations({});assert(!html.includes('<script>'));assert(html.includes('&lt;script&gt;'));
+sandbox.lastStatus.manual_recommendation_publication.execution_authorized=true;assert(sandbox.v115ManualRecommendations({}).includes('aguardando'));
+console.log('MANUAL_PUBLICATION_UI_FILTER_EXPIRY_ESCAPE_NO_EXECUTION_OK');
