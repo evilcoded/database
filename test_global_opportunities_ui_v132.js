@@ -11,8 +11,8 @@ rows.push({instrument_id:'EURONLY',asset:'EUR ONLY',account_id:'N26',currency:'E
 ctx.lastStatus={portfolio:{scores:[{asset:'UNSCOPED_LEGACY',action:'COMPRE'}]}};
 let html=run('v37TopOpportunities(d)');assert(html.includes('Ver 8 leituras'));assert(!html.includes('EUR ONLY'));assert(!html.includes('UNSCOPED_LEGACY'));assert(html.includes('COMPRA'));assert(html.includes('SOL&lt;script&gt;'));assert(!html.includes('<script>'));
 assert.equal((html.match(/class="v118-tile"/g)||[]).length,6);
-let popup=run("v35PopupStore.get('v132-opportunity:0').html");assert(popup.includes('44.2'));assert(popup.includes('75'));assert(popup.includes('não atendido'));assert(popup.includes('desde o custo registrado'));assert(popup.includes('não define stop-loss'));assert(popup.includes('CoinGecko'));assert(popup.includes('não confirmada'));
-assert.equal((run("v35PopupStore.get('v132-all-opportunities').html").match(/class="v118-tile"/g)||[]).length,8);
+let popup=run("v35PopupStore.get('v132-opportunity:BRL:0').html");assert(popup.includes('44.2'));assert(popup.includes('75'));assert(popup.includes('não atendido'));assert(popup.includes('desde o custo registrado'));assert(popup.includes('não define stop-loss'));assert(popup.includes('CoinGecko'));assert(popup.includes('não confirmada'));
+assert.equal((run("v35PopupStore.get('v132-all-opportunities:BRL').html").match(/class="v118-tile"/g)||[]).length,8);
 run("a24CockpitState.account='Other'");html=run('v37TopOpportunities(d)');assert(html.includes('Other'));assert(!html.includes('Nubank'));assert(!html.includes('Ver 8'));
 run("a24CockpitState.account='';a24CockpitState.currency='EUR'");html=run('v37TopOpportunities(d)');assert(html.includes('EUR ONLY'));assert(!html.includes('Nubank'));
 run("a24CockpitState.currency='BRL';a24CockpitState.query='NO_MATCH'");assert(run('v37TopOpportunities(d)').includes('Nenhuma alternativa vinculada'));
