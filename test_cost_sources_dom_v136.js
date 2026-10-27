@@ -1,0 +1,20 @@
+const fs=require('fs');
+const source=fs.readFileSync('/workspace/database/test_review_click_dom_v130.js','utf8');
+new Function('require',source.slice(0,source.indexOf('const tick='))+`
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+(async()=>{
+ const s=setup();s.click();
+ const start=new Date(Date.now()-60000).toISOString(),end=new Date(Date.now()+600000).toISOString();
+ const option={execution_venue_id:'Reviewed bank route',source_kind:'ACCOUNT_PRICING_CONTRACT',source_ref:'Existing documented quote',observed_at:start,valid_until:end,components:Object.fromEntries(['brokerage','exchange_fees','spread','slippage','taxes','other_costs'].map(k=>[k,{status:k==='brokerage'?'KNOWN':k==='spread'?'UNKNOWN':'NOT_APPLICABLE',amount:k==='brokerage'?'0':null}]))};
+ s.pending.at(-1).resolve({ok:true,json:async()=>({cases:[{account_id:'A',currency:'EUR',instrument_id:'BTC',reference_amount:'1',case_id:'case',review_context_digest:'digest',account_label:'Bank account',documentary_guidance:{documents:[{source_url:'https://example.org/pricing',status:'DOCUMENTED_ROUTE_COMMISSION_COMPUTED',documented_component_subtotal:'0.02',source_review_until:end},{source_url:'javascript:alert(1)',status:'ROUTE_PRETRADE_QUOTE_REQUIRED'}]},current_review_options:[option]}]})});
+ await tick();const form=s.w.document.getElementById('v129-cost-form');assert(form);assert(form.textContent.includes('não preenchem os campos'));assert(form.querySelector('a[href="https://example.org/pricing"]'));assert(!form.querySelector('a[href^="javascript:"]'));
+ for(const name of ['brokerage','exchange_fees','spread','slippage','taxes','other_costs']){assert.equal(form.elements['status_'+name].value,'UNKNOWN');assert.equal(form.elements['amount_'+name].value,'')}
+ assert.equal(form.elements.source_ref.value,'');assert.equal(form.elements.observed_at.value,'');assert.equal(s.requests.filter(r=>r.url==='/api/research/cost-reviews').length,0);
+ form.elements.confirmed.checked=true;form.querySelector('[data-v136-load-review]').click();
+ assert.equal(form.elements.confirmed.checked,false);assert.equal(form.elements.source_kind.value,'ACCOUNT_PRICING_CONTRACT');assert.equal(form.elements.source_ref.value,option.source_ref);assert.equal(form.elements.observed_at.value,start);assert.equal(form.elements.valid_until.value,end);assert.equal(form.elements.status_brokerage.value,'KNOWN');assert.equal(form.elements.amount_brokerage.value,'0');assert(!form.elements.amount_brokerage.disabled);assert(form.elements.amount_spread.disabled);assert.equal(form.elements.status_spread.value,'UNKNOWN');assert.equal(form.elements.status_taxes.value,'NOT_APPLICABLE');assert(form.querySelector('[role=status]').textContent.includes('prazo original foi mantido'));assert.equal(s.requests.filter(r=>r.url==='/api/research/cost-reviews').length,0);
+ option.valid_until=new Date(Date.now()-1).toISOString();form.elements.source_ref.value='Unchanged edited value';form.querySelector('[data-v136-load-review]').click();assert.equal(form.elements.source_ref.value,'Unchanged edited value');assert(form.querySelector('[role=status]').textContent.includes('venceu'));
+ option.valid_until=end;form.querySelector('[data-v136-load-review]').click();form.elements.confirmed.checked=true;form.dispatchEvent(new s.w.Event('submit',{bubbles:true,cancelable:true}));await tick();await tick();
+ const posts=s.requests.filter(r=>r.url==='/api/research/cost-reviews');assert.equal(posts.length,1);const saved=JSON.parse(posts[0].options.body);assert.equal(saved.valid_until,end);assert.equal(saved.observed_at,start);assert.equal(saved.components.brokerage.amount,'0');assert.equal(saved.components.spread.status,'UNKNOWN');assert(!('documentary_guidance' in saved));assert.equal(saved.source_ref,option.source_ref);assert.deepEqual(s.errors,[]);s.dom.window.close();
+ console.log('FULL_SCRIPT_DOCUMENTARY_HINTS_NEVER_FILL_REVIEW_LOAD_PRESERVES_VALIDITY_AND_REQUIRES_CONFIRMATION_OK');
+})().catch(e=>{console.error(e);process.exitCode=1});
+`)(require);
