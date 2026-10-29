@@ -1,0 +1,20 @@
+const fs=require('fs');
+const fixture=fs.readFileSync('/workspace/database/test_review_click_dom_v130.js','utf8');
+new Function('require',fixture.slice(0,fixture.indexOf('const tick='))+`
+const s=setup();s.run("a24UiInit();a24CockpitState.currency='';a24CockpitState.account='';a24CockpitState.query='SOL';a24ExplicitFilters=true;var currencyData={universal_portfolio:{schema:'porquinho.universal-cockpit-a24/1.0',status:'UNIVERSAL_FACTS_PROJECTED',cross_currency_aggregation:false,execution_authorized:false,positions:[],cash:[],currency_totals:[{currency:'EUR'},{currency:'BRL'}],accounts:[{account_id:'E',currency:'EUR',institution_name:'Euro',name:'Account'},{account_id:'B',currency:'BRL',institution_name:'Brasil',name:'Account'}]}};a24UiMount=function(){document.getElementById('modalBody').innerHTML=a24UiFilters(currencyData)};a24UiMount();");
+const buttons=()=>[...s.w.document.querySelectorAll('[data-a24-currency]')],button=q=>buttons().find(n=>n.dataset.a24Currency===q),state=()=>JSON.parse(s.run('JSON.stringify(a24CockpitState)'));
+assert.equal(buttons().length,3);assert(!s.w.document.querySelector('select[data-a24-filter="currency"]'));
+assert.deepEqual(buttons().map(b=>b.textContent),['🌐Global','🇪🇺EUR','🇧🇷BRL']);assert.equal(button('').getAttribute('aria-pressed'),'true');
+const requests=s.requests.length;
+button('EUR').click();assert.equal(state().currency,'EUR');assert.equal(state().account,'');assert.equal(state().query,'SOL');assert.equal(button('EUR').getAttribute('aria-pressed'),'true');assert.equal(s.w.document.activeElement,button('EUR'));
+assert.deepEqual([...s.w.document.querySelector('[data-a24-filter="account"]').options].map(o=>o.value),['','E']);
+button('BRL').querySelector('[aria-hidden]').click();assert.equal(state().currency,'BRL');assert.equal(button('BRL').getAttribute('aria-pressed'),'true');
+s.run("a24CockpitState.account='B';a24SaveFilters();a24UiMount()");button('BRL').click();assert.equal(state().account,'B','Clicking the active currency must keep the account selection');
+const saved=s.w.localStorage.getItem('porquinho.cockpit.filters.v1');
+const prefix=fs.readFileSync(path.join(root,'static/universal_cockpit_a24.js'),'utf8').split('const a24CockpitOpen=')[0];
+const reloaded=vm.createContext({localStorage:{getItem:()=>saved,setItem:()=>{}}});vm.runInContext(prefix,reloaded);assert.equal(vm.runInContext('a24CockpitState.currency',reloaded),'BRL');assert.equal(vm.runInContext('a24CockpitState.account',reloaded),'B');
+button('').click();assert.equal(state().currency,'');assert.equal(state().account,'');assert.equal(s.run("a24UiScope({currency:'EUR'})&&a24UiScope({currency:'BRL'})"),true);
+button('EUR').click();s.w.document.querySelector('[data-a24-clear]').click();assert.equal(state().currency,'');assert.equal(state().query,'');assert.equal(button('').getAttribute('aria-pressed'),'true');
+assert.equal(s.requests.length,requests,'Changing currency must not start a cycle or request any API');
+assert.deepEqual(s.errors,[]);s.dom.window.close();console.log('CURRENCY_BUTTONS_CLICK_ICONS_ACCOUNT_SCOPE_GLOBAL_RESET_FOCUS_AND_RELOAD_PERSISTENCE_OK');
+`)(require);
