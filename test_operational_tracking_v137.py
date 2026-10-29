@@ -32,7 +32,8 @@ class Tracking(unittest.TestCase):
         self.run_capture();second=self.run_capture(NOW+dt.timedelta(minutes=1));self.assertEqual(second['issues_created'],0)
         self.assertEqual(len(tracking.issues(self.root,NOW+dt.timedelta(minutes=1))),1)
     def test_changed_plan_prevents_capture(self):
-        result=tracking.run(self.root,self.plan,now=NOW,revalidate=lambda:{**self.plan,'changed':True});self.assertEqual(result['issues_created'],0);self.assertEqual(tracking.issues(self.root,NOW),[])
+        changed=copy.deepcopy(self.plan);changed['contexts'][0]['capital_reference']='CHANGED'
+        result=tracking.run(self.root,self.plan,now=NOW,revalidate=lambda:changed);self.assertEqual(result['issues_created'],0);self.assertEqual(tracking.issues(self.root,NOW),[])
     def test_stale_baseline_is_not_backfilled_from_history(self):
         result=self.run_capture(NOW+dt.timedelta(hours=1));self.assertEqual(result['issues_created'],0)
     def test_missing_binding_and_price_are_not_replaced_by_ticker(self):
