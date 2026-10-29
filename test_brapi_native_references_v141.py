@@ -12,7 +12,7 @@ NOW=fixture.NOW
 class References(unittest.TestCase):
     def setUp(self):
         self.f=fixture.Acquisition();self.f.setUp();self.addCleanup(self.f.doCleanups);self.root=self.f.root
-        self.prepare(9)
+        self.prepare(2)
     def prepare(self,count):
         self.bindings=[self.f.rows(instrument_id='BR:B3:EQUITY:T'+str(i),provider='brapi',provider_id='T'+str(i)) for i in range(count)]
         (self.root/'data/universal_instrument_catalog.json').write_text(json.dumps({'instruments':[{'instrument_id':b['instrument_id']} for b in self.bindings]}));self.f.save(self.bindings)
@@ -27,27 +27,34 @@ class References(unittest.TestCase):
         return call
     def collect(self,*,now=NOW,fetch=None,revalidate=None,max_jobs=50):
         return q.collect(self.root,self.demand,now=now,transport=self.f.transport,brapi_transport=fetch or self.fetch(now=now),revalidate=revalidate or (lambda:self.current),max_jobs=max_jobs)
-    def test_all_nine_current_references_are_refreshed_in_one_existing_batch_route(self):
-        result=self.collect();self.assertEqual(result['observations_created'],9,result);self.assertEqual(result['current_references_refreshed'],9)
-        self.assertEqual(len(self.calls),1);self.assertEqual(set(self.calls[0].rsplit('/',1)[-1].split(',')),{b['provider_id'] for b in self.bindings})
-        self.assertEqual(len(q.valuation_records(self.root,now=NOW)),9);self.assertFalse(self.f.transport.calls)
+    def test_all_nine_progress_in_single_asset_requests_across_cycles(self):
+        self.prepare(9)
+        for minute,expected in enumerate((2,4,6,8,9)):
+            now=NOW+dt.timedelta(minutes=minute)
+            result=self.collect(now=now,fetch=self.fetch(now=now))
+            self.assertLessEqual(result['network_requests'],2,result)
+            self.assertEqual(len(q.valuation_records(self.root,now=now)),expected)
+        self.assertEqual(len(self.calls),9)
+        self.assertTrue(all(',' not in url.rsplit('/',1)[-1] for url in self.calls))
+        self.assertFalse(self.f.transport.calls)
     def test_intraday_updates_preserve_daily_training_bytes_but_replace_current_references(self):
         self.collect();path=q.storage_path(self.root,NOW.date());first=path.read_bytes()
         for minutes in (10,20,40,60):
             now=NOW+dt.timedelta(minutes=minutes);result=self.collect(now=now,fetch=self.fetch(now=now,price=100+minutes))
-            self.assertEqual(result['observations_created'],0);self.assertEqual(result['current_references_refreshed'],9,result);self.assertEqual(path.read_bytes(),first)
-            rows=q.valuation_records(self.root,now=now);self.assertEqual(len(rows),9);self.assertEqual({r['price'] for r in rows},{str(100+minutes)})
-        self.assertEqual(len(q.read_records(self.root)),9)
+            self.assertEqual(result['observations_created'],0);self.assertEqual(result['current_references_refreshed'],2,result);self.assertEqual(path.read_bytes(),first)
+            rows=q.valuation_records(self.root,now=now);self.assertEqual(len(rows),2);self.assertEqual({r['price'] for r in rows},{str(100+minutes)})
+        self.assertEqual(len(q.read_records(self.root)),2)
     def test_within_ten_minutes_cache_avoids_provider_call(self):
         self.collect();before=len(self.calls);result=self.collect(now=NOW+dt.timedelta(minutes=9))
-        self.assertEqual(len(self.calls),before);self.assertEqual(result['providers']['brapi']['cached_reference_count'],9)
-    def test_partial_invalid_and_stale_rows_do_not_discard_other_exact_native_quotes(self):
+        self.assertEqual(len(self.calls),before);self.assertEqual(result['providers']['brapi']['cached_reference_count'],2)
+    def test_invalid_identity_does_not_discard_other_exact_native_quote(self):
         def mutate(body):
-            body['results'][0]['regularMarketTime']=int((NOW-dt.timedelta(hours=2)).timestamp())
-            body['results'][1]['currency']='EUR';body['results'][2]['regularMarketPrice']=True
-            body['results'].append(copy.deepcopy(body['results'][3]));return body
-        result=self.collect(fetch=self.fetch(mutate=mutate));self.assertEqual(result['current_references_refreshed'],5,result)
-        self.assertEqual(len(q.valuation_records(self.root,now=NOW)),5);self.assertEqual(result['providers']['brapi']['blocked_reason_counts']['BRAPI_QUOTE_CURRENCY_MISMATCH'],1)
+            if body['results'][0]['symbol']=='T0':body['results'][0]['currency']='EUR'
+            return body
+        result=self.collect(fetch=self.fetch(mutate=mutate))
+        self.assertEqual(result['current_references_refreshed'],1,result)
+        self.assertEqual(len(q.valuation_records(self.root,now=NOW)),1)
+        self.assertEqual(result['providers']['brapi']['blocked_reason_counts']['BRAPI_QUOTE_CURRENCY_MISMATCH'],1)
     def test_stale_observation_never_becomes_current_by_batch_capture_time(self):
         result=self.collect(fetch=self.fetch(now=NOW-dt.timedelta(hours=1)))
         self.assertEqual(result['current_references_refreshed'],0);self.assertEqual(result['providers']['brapi']['status'],'SOURCE_OBSERVATION_NOT_CURRENT');self.assertEqual(q.valuation_records(self.root,now=NOW),[])
@@ -64,10 +71,12 @@ class References(unittest.TestCase):
     def test_429_is_not_retried_and_counts_unattempted_batch_as_deferred(self):
         self.prepare(45)
         def fail(url,**kw):self.calls.append(url);raise RuntimeError('PROVIDER_HTTP_429')
-        result=self.collect(fetch=fail);out=result['providers']['brapi'];self.assertEqual(len(self.calls),1);self.assertEqual(out['status'],'RATE_LIMITED');self.assertEqual(out['deferred_job_count'],25)
+        result=self.collect(fetch=fail);out=result['providers']['brapi'];self.assertEqual(len(self.calls),1);self.assertEqual(out['status'],'RATE_LIMITED');self.assertEqual(out['deferred_job_count'],44)
     def test_population_larger_than_budget_is_bounded_and_rotates_without_ranking(self):
-        self.prepare(45);r=self.collect();out=r['providers']['brapi'];self.assertEqual(out['network_requests'],2);self.assertEqual(out['current_references_refreshed'],40);self.assertEqual(out['deferred_job_count'],5)
-        now=NOW+dt.timedelta(minutes=1);r=self.collect(now=now,fetch=self.fetch(now=now));self.assertEqual(r['current_references_refreshed'],5);self.assertEqual(len(q.valuation_records(self.root,now=now)),45)
+        self.prepare(45);r=self.collect();out=r['providers']['brapi']
+        self.assertEqual(out['network_requests'],2);self.assertEqual(out['current_references_refreshed'],2);self.assertEqual(out['deferred_job_count'],43)
+        now=NOW+dt.timedelta(minutes=1);r=self.collect(now=now,fetch=self.fetch(now=now))
+        self.assertEqual(r['current_references_refreshed'],2);self.assertEqual(len(q.valuation_records(self.root,now=now)),4)
     def test_provider_secrets_do_not_appear_in_diagnostics(self):
         def fail(*a,**kw):raise RuntimeError('PRIVATE_PROVIDER_TOKEN')
         self.assertNotIn('PRIVATE_PROVIDER_TOKEN',json.dumps(self.collect(fetch=fail)))
@@ -76,7 +85,7 @@ class References(unittest.TestCase):
     def test_coingecko_failure_does_not_gate_exact_brapi_source_refresh(self):
         failed={'status':'ACQUISITION_FAILED_CLOSED','observations_created':0,'network_requests':0}
         with patch.object(q,'_collect_coingecko',return_value=failed):result=self.collect()
-        self.assertEqual(result['current_references_refreshed'],9);self.assertEqual(result['status'],'PARTIAL_PROVIDER_REFERENCES_REFRESHED');self.assertEqual(result['providers']['coingecko']['status'],'ACQUISITION_FAILED_CLOSED')
+        self.assertEqual(result['current_references_refreshed'],2);self.assertEqual(result['status'],'PARTIAL_PROVIDER_REFERENCES_REFRESHED');self.assertEqual(result['providers']['coingecko']['status'],'ACQUISITION_FAILED_CLOSED')
     def test_real_verified_ledger_holding_is_refreshed_without_crypto_routing_or_daily_training(self):
         from universal_portfolio.ledger import TransactionLedger
         ledger=TransactionLedger(self.root/'data/transaction_ledger.jsonl');iid=self.bindings[0]['instrument_id']
