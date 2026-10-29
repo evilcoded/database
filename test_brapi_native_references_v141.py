@@ -21,7 +21,7 @@ class References(unittest.TestCase):
         self.demand=template;self.current={(c['account_id'],c['currency'],c['context_fingerprint']) for c in template['contexts']};self.calls=[]
     def fetch(self,*,now=NOW,price=100,mutate=None):
         def call(url,**kw):
-            self.calls.append(url);ids=url.rsplit('/',1)[-1].split(';')
+            self.calls.append(url);ids=url.rsplit('/',1)[-1].split(',')
             rows=[{'symbol':pid,'currency':'BRL','regularMarketPrice':price,'regularMarketTime':int(now.timestamp())} for pid in ids]
             response={'results':rows};return mutate(response) if mutate else response
         return call
@@ -29,7 +29,7 @@ class References(unittest.TestCase):
         return q.collect(self.root,self.demand,now=now,transport=self.f.transport,brapi_transport=fetch or self.fetch(now=now),revalidate=revalidate or (lambda:self.current),max_jobs=max_jobs)
     def test_all_nine_current_references_are_refreshed_in_one_existing_batch_route(self):
         result=self.collect();self.assertEqual(result['observations_created'],9,result);self.assertEqual(result['current_references_refreshed'],9)
-        self.assertEqual(len(self.calls),1);self.assertEqual(set(self.calls[0].rsplit('/',1)[-1].split(';')),{b['provider_id'] for b in self.bindings})
+        self.assertEqual(len(self.calls),1);self.assertEqual(set(self.calls[0].rsplit('/',1)[-1].split(',')),{b['provider_id'] for b in self.bindings})
         self.assertEqual(len(q.valuation_records(self.root,now=NOW)),9);self.assertFalse(self.f.transport.calls)
     def test_intraday_updates_preserve_daily_training_bytes_but_replace_current_references(self):
         self.collect();path=q.storage_path(self.root,NOW.date());first=path.read_bytes()
