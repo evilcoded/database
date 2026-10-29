@@ -19,7 +19,10 @@ class Holdings(unittest.TestCase):
   self.runtime=dict(authority='NONE',ledger_write=False,ledger_verified=self.ledger.verify(),cutover_effective_from='2026-10-01T00:00:00+00:00',positions=[dict(account_reference='account-BRL',account_status='EXPLICIT_TRANSACTION_ACCOUNT',instrument_id=IID,currency='BRL',quantity='2',cost_basis='200')])
  def demand(self,cash='800',budget='1000'):
   b=dict(budget_id='budget',account_id='account-BRL',currency='BRL',amount=budget,status='ACTIVE',authority='NONE',ledger_semantics='NONE',creates_cash=False,mutates_ledger=False)
-  return funding.project(cash=[dict(account_id='account-BRL',currency='BRL',amount=cash)],registry=self.registry,budgets=[b],candidates=[dict(instrument_id=IID,asset_class='CRYPTO')])
+  out=funding.project(cash=[dict(account_id='account-BRL',currency='BRL',amount=cash)],registry=self.registry,budgets=[b],candidates=[dict(instrument_id=IID,asset_class='CRYPTO')])
+  # Explicitly exercise the held-only lane; V110 also permits research over cash.
+  out['research_requests']=[]
+  return out
  def collect(self,demand=None,now=NOW):
   transport=v108.Transport(now)
   with patch('universal_portfolio.canonical_runtime_read_model.build',return_value=self.runtime):
