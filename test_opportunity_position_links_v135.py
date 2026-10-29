@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import copy,datetime as dt,json,unittest
 import test_global_opportunities_v132 as fixture
 from universal_portfolio import global_opportunity_readings_a24 as opportunities
@@ -60,7 +61,8 @@ class Links(unittest.TestCase):
         from universal_portfolio.experience_panels_a24 import build
         (self.f.root/'config.json').write_text(json.dumps({'action_rules':fixture.dashboard.CFG}));(self.f.root/'results').mkdir()
         (self.f.root/'results/latest.json').write_text(json.dumps(self.f.snapshot))
-        result=build(self.f.root,now=NOW,cockpit=self.f.cockpit,funding=self.f.demand,reference_links=self.links)
+        with patch('universal_portfolio.common_action_metrics_a24.read_metrics',return_value={'metrics':self.f.snapshot['scores']}):
+            result=build(self.f.root,now=NOW,cockpit=self.f.cockpit,funding=self.f.demand,reference_links=self.links)
         rows=result['global_opportunity_readings']['rows'];r=next(r for r in rows if r['account_id']=='account-BRL')
         self.assertEqual(r['action'],'MANTENHA');self.assertTrue(r['position_reference_compatibility_used'])
 

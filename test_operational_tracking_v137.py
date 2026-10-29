@@ -78,11 +78,13 @@ class Tracking(unittest.TestCase):
         (self.root/'config.json').write_text(json.dumps(operational.CFG));(self.root/'results').mkdir(exist_ok=True)
         (self.root/'results/latest.json').write_text(json.dumps({'timestamp':NOW.isoformat(),'scores':[score]}))
         cockpit={'execution_authorized':False,'financial_mutation':False,'positions':[],'cash':[operational.cash(a='account-BRL',value='100')]}
-        plan=plans.from_root(self.root,self.demand,cockpit,now=NOW)
+        common={'metrics':[score],'metric_count':1,'profile':'COMMON_NATIVE_PRICE_INDEX_V1'}
+        with patch('universal_portfolio.common_action_metrics_a24.read_metrics',return_value=common):
+            plan=plans.from_root(self.root,self.demand,cockpit,now=NOW)
         row=plan['contexts'][0]['rows'][0];self.assertEqual(row['action'],'COMPRE');self.assertEqual(row['reference_amount'],'25.00')
         from universal_portfolio.operational_cycle_a24 import run
         ledger=self.root/'data/ledger_sentinel.json';ledger.write_text('UNCHANGED')
-        with patch('universal_portfolio.universal_observation_bridge.observed_candidates',return_value=(self.root,[])),patch('universal_portfolio.funded_currency_research_a24.build',return_value=self.demand),patch('universal_portfolio.canonical_runtime_read_model.build',return_value={}),patch('universal_portfolio.universal_cockpit_a24.build',return_value=cockpit),patch('universal_portfolio.position_reference_reconciliation_a24.load',return_value=[]),patch('universal_portfolio.universal_observation_bridge.build_read_only_bridge',side_effect=AssertionError('Economic bridge must not gate original signals')):
+        with patch('universal_portfolio.common_action_metrics_a24.read_metrics',return_value=common),patch('universal_portfolio.universal_observation_bridge.observed_candidates',return_value=(self.root,[])),patch('universal_portfolio.funded_currency_research_a24.build',return_value=self.demand),patch('universal_portfolio.canonical_runtime_read_model.build',return_value={}),patch('universal_portfolio.universal_cockpit_a24.build',return_value=cockpit),patch('universal_portfolio.position_reference_reconciliation_a24.load',return_value=[]),patch('universal_portfolio.universal_observation_bridge.build_read_only_bridge',side_effect=AssertionError('Economic bridge must not gate original signals')):
             result=run(self.root,now=NOW)
         self.assertEqual(result['status'],'ORIGINAL_OPERATIONAL_CYCLE_EVALUATED',result);self.assertEqual(result['tracking']['issues_created'],1,result)
         self.assertEqual(ledger.read_text(),'UNCHANGED');self.assertEqual(len(tracking.issues(self.root,NOW)),1)

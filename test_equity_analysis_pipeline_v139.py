@@ -54,7 +54,7 @@ class Pipeline(unittest.TestCase):
         with patch('equities.technical.compute',return_value={'features':{'bad':float('nan')}}):result=pipeline.collect(self.root,now=NOW)
         self.assertEqual(result['analysis_count'],0);self.assertEqual(pipeline.inspect(self.root,now=NOW)['assets'][0]['reason'],'FINITE_DERIVED_ANALYSIS_REQUIRED')
         self.assertEqual(good['standardized_action_metric_count'],0);self.assertEqual(old.read_bytes(),before)
-    def test_actual_native_capture_supplies_current_quote_without_promoting_action_indices(self):
+    def test_actual_native_capture_supplies_current_quote_and_separate_common_indices(self):
         from universal_portfolio import funded_currency_research_a24 as funding
         from universal_portfolio import research_quote_acquisition_a24 as quotes
         from universal_portfolio import brapi_research_acquisition_a24 as brapi
@@ -65,7 +65,7 @@ class Pipeline(unittest.TestCase):
         response={'results':[{'symbol':'TEST3','currency':'BRL','regularMarketPrice':110,'regularMarketTime':int(NOW.timestamp())}]}
         result=brapi.collect(self.root,prepared,prepared['jobs'],now=NOW,transport=lambda *a,**kw:response,revalidate=lambda:current)
         self.assertEqual(result['current_references_refreshed'],1,result)
-        analysis=self.build();self.assertEqual(analysis['current_exact_quote_count'],1);self.assertEqual(analysis['standardized_action_metric_count'],0)
+        analysis=self.build();self.assertEqual(analysis['current_exact_quote_count'],1);self.assertEqual(analysis['standardized_action_metric_count'],1)
         row=analysis['assets'][0];self.assertEqual(row['source_quote_observed_at'],NOW.isoformat());self.assertFalse(row['recommendation_created'])
         self.assertEqual(row['technical_coverage']['largest_declared_window_points'],200);self.assertIn('sma_200',[f['name'] for f in row['technical_coverage']['pending_features']])
     def test_no_benchmark_is_silently_selected_or_fabricated(self):
