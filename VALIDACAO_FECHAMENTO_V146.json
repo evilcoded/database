@@ -1,0 +1,68 @@
+{
+  "schema": "porquinho.suggestion-consolidation-validation/1.0",
+  "status": "FIVE_ACTION_FLOWS_VALIDATED_WITH_CONTROL_SCENARIOS",
+  "scenarios": [
+    {
+      "currency": "EUR",
+      "provider": "CoinGecko",
+      "actions_verified": [
+        "COMPRA",
+        "VENDA",
+        "MANTENHA",
+        "REALIZAR",
+        "REALOCAR"
+      ],
+      "gross_buy_reference": "400.00",
+      "gross_sale_reference": "200",
+      "partial_realization_quantity": "0.50",
+      "partial_valuation_preserves_signal": true,
+      "realization_convergence_review_preserved": true
+    },
+    {
+      "currency": "BRL",
+      "provider": "CoinGecko",
+      "actions_verified": [
+        "COMPRA",
+        "VENDA",
+        "MANTENHA",
+        "REALIZAR",
+        "REALOCAR"
+      ],
+      "gross_buy_reference": "400.00",
+      "gross_sale_reference": "200",
+      "partial_realization_quantity": "0.50",
+      "partial_valuation_preserves_signal": true,
+      "realization_convergence_review_preserved": true
+    },
+    {
+      "currency": "BRL",
+      "provider": "brapi",
+      "actions_verified": [
+        "COMPRA",
+        "VENDA",
+        "MANTENHA",
+        "REALIZAR",
+        "REALOCAR"
+      ],
+      "gross_buy_reference": "400.00",
+      "gross_sale_reference": "200",
+      "partial_realization_quantity": "0.50",
+      "partial_valuation_preserves_signal": true,
+      "realization_convergence_review_preserved": true
+    }
+  ],
+  "real_market_actions_forced": false,
+  "network_requests": 0,
+  "history_write_performed": false,
+  "financial_mutation": false,
+  "models_modified": false,
+  "model_performance_validated": false,
+  "execution_authorized": false,
+  "uses_live_financial_data": false,
+  "control_thresholds_not_live_configuration": true,
+  "verification": {
+    "python_tests_passed": 185,
+    "financial_performance_validation": false,
+    "obsolete_ast_test_excluded": "test_actual_normal_cycle_hook_uses_funded_research_context"
+  }
+}

@@ -1,0 +1,22 @@
+const fs=require('fs');
+const fixture=fs.readFileSync('/workspace/database/test_review_click_dom_v130.js','utf8');
+const project=process.env.PORQUINHO_PROJECT||process.cwd();
+const controlFixture=JSON.parse(require('child_process').execFileSync(process.env.PORQUINHO_PYTHON||'/workspace/porquinho-a24/capital-test-venv/bin/python',['-B','-c',"import json\nfrom universal_portfolio.consolidation_validation_a24 import scenario,plan,NOW\nfrom universal_portfolio.suggestion_consolidation_a24 import build\ncontexts=[];positions=[];cash=[]\nfor currency in ['EUR','BRL']:\n c,r=scenario(currency,'CoinGecko');contexts.extend(plan(c,r)['contexts']);positions+=c['positions'];cash+=c['cash']\np=plan(c,r);p['contexts']=contexts;p['consolidation']=build(p,now=NOW)\nprint(json.dumps({'plan':p,'positions':positions,'cash':cash,'now':NOW.isoformat()}))\n"],{cwd:project,env:{...process.env,PYTHONPATH:project},encoding:'utf8'}));
+new Function('require','controlFixture',fixture.slice(0,fixture.indexOf('const tick='))+`
+const s=setup();s.run('v35Init()');const control=controlFixture;
+s.w.control146=control;
+s.run("Date.now=()=>Date.parse(control146.now);a24ExplicitFilters=true;a24CockpitState.currency='BRL';a24CockpitState.account='';a24CockpitState.query='';lastStatus={};var data146={universal_portfolio:{schema:'porquinho.universal-cockpit-a24/1.0',status:'UNIVERSAL_FACTS_PROJECTED',cross_currency_aggregation:false,execution_authorized:false,positions:control146.positions,cash:control146.cash,catalog:[],accounts:[]},cockpit_panels:{schema:'porquinho.experience-panels-a24/1.0',execution_authorized:false,global_rule_readings:{rows:[]},global_operational_plan:control146.plan}};v35Modal('Decisions',v35Pending(data146));");
+const body=()=>s.w.document.getElementById('modalBody');
+let text=body().textContent;assert(text.includes('Venda / reduzir 1'));assert(text.includes('Realizar 1'));assert(text.includes('Mantenha 1'));assert(text.includes('Realocar 1'));
+let entry=body().querySelector('[data-v35-popup="v137-new-entry:0"]');assert(entry);assert(entry.textContent.includes('400'));entry.click();assert(body().textContent.includes('COMPRA'));assert(body().textContent.includes('400'));s.run('v39Back()');
+let tiles=[...body().querySelectorAll('.v118-position')];assert.equal(tiles.length,3);
+let realize=tiles.find(x=>x.textContent.includes('REALIZAR'));assert(realize);realize.click();assert(body().textContent.includes('0.50'));assert(body().textContent.includes('25%'));s.run('v39Back()');
+tiles=[...body().querySelectorAll('.v118-position')];tiles.find(x=>x.textContent.includes('VENDA')).click();assert(body().textContent.includes('200'));assert(body().textContent.includes('Saída integral'));s.run('v39Back()');
+tiles=[...body().querySelectorAll('.v118-position')];tiles.find(x=>x.textContent.includes('MANTENHA')).click();assert(body().textContent.includes('MANTENHA'));s.run('v39Back()');
+body().querySelector('[data-v35-popup="v137-reallocation:0"]').click();assert(body().textContent.includes('REALOCAR'));assert(body().textContent.includes('200'));assert(body().textContent.includes('50'));assert(body().textContent.includes('400'));assert(body().textContent.includes('não está validada'));assert.equal(body().querySelectorAll('[data-v35-popup]').length,9);s.run('v39Back()');
+s.run("a24CockpitState.currency='EUR';v35Modal('EUR',v35Pending(data146));");assert(!body().textContent.includes('BRL'));assert(body().textContent.includes('EUR'));
+s.run("a24CockpitState.currency='';v35Modal('Global',v35Pending(data146));");assert.equal(body().querySelectorAll('.v118-position').length,6);
+s.run("Date.now=()=>Date.parse(control146.now)+3600000;v35Modal('Expired',v35Pending(data146));");assert(!body().querySelector('[data-v35-popup="v137-new-entry:0"]'));assert(!body().querySelector('[data-v35-popup="v137-reallocation:0"]'));assert(![...body().querySelectorAll('.v118-position')].some(t=>t.textContent.includes('VENDA')||t.textContent.includes('MANTENHA')||t.textContent.includes('REALIZAR')));
+assert.equal(s.requests.filter(r=>r.options?.method==='POST').length,0);assert.deepEqual(s.errors,[]);s.dom.window.close();
+console.log('ACTUAL_PYTHON_CONTRACT_FIVE_ACTIONS_DOM_CLICKS_FRACTION_QUANTITY_GLOBAL_EUR_BRL_AND_EXPIRY_NO_POST_OK');
+`)(require,controlFixture);

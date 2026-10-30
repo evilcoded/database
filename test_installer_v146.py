@@ -1,0 +1,30 @@
+"""Synthetic V145->V146 install, no live service/configuration/data access."""
+import ast,base64,shutil,subprocess,sys,tempfile
+from pathlib import Path
+repo=Path(__file__).resolve().parent;project=Path('/workspace/porquinho-a24/project')
+s=(repo/'PORQUINHO_FECHAMENTO_CONSOLIDACAO_V146.command').read_text();code=s.split("<<'PYTHON'\n",1)[1].split('\nPYTHON',1)[0]
+files=ast.literal_eval(next(l[6:] for l in code.splitlines() if l.startswith('FILES=')))
+with tempfile.TemporaryDirectory() as tmp:
+ root=Path(tmp)/'app';shutil.copytree('/tmp/v146-old',root)
+ for rel in ['brain/__init__.py','brain/knowledge/__init__.py','universal_portfolio/__init__.py','webapp/server.py']:
+  p=root/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('')
+ for rel in ['universal_portfolio/global_action_readings_a24.py','universal_portfolio/universal_action_rules_a24.py','universal_portfolio/global_dashboard_observations_a24.py','universal_portfolio/operational_decision_core_a24.py','universal_portfolio/explicit_market_bindings_a24.py']:
+  shutil.copy2(project/rel,root/rel)
+ for rel in ['data/ledger.json','models/sentinel','config.json','data/brain/legacy/sentinel']:
+  p=root/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'PRESERVE')
+ def run(target):
+  body=code.replace("ROOT=Path('/Applications/Bridge_Companion/porquinho_v33_web_foundation-2')",'ROOT=Path('+repr(str(target))+')')
+  return subprocess.run([sys.executable,'-I','-B','-'],input=body,capture_output=True,text=True)
+ divergence=Path(tmp)/'divergence';shutil.copytree(root,divergence)
+ (divergence/'universal_portfolio/global_operational_plan_a24.py').write_text('LOCAL EDIT')
+ before={p.relative_to(divergence):p.read_bytes() for p in divergence.rglob('*') if p.is_file()}
+ r=run(divergence);assert r.returncode and 'BASE_DIVERGENTE' in r.stderr,r.stderr
+ assert before=={p.relative_to(divergence):p.read_bytes() for p in divergence.rglob('*') if p.is_file()}
+ r=run(root);assert r.returncode==0,r.stderr
+ assert 'CINCO_FLUXOS_VALIDADOS' in r.stdout and 'PATCH_FECHAMENTO_CONSOLIDACAO_V146_OK' in r.stdout
+ for rel,b in files.items():assert (root/rel).read_bytes()==base64.b64decode(b)
+ before={p.relative_to(root):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+ r=run(root);assert r.returncode==0,r.stderr
+ assert before=={p.relative_to(root):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+ for rel in ['data/ledger.json','models/sentinel','config.json','data/brain/legacy/sentinel']:assert (root/rel).read_bytes()==b'PRESERVE'
+print('V146_ELEVEN_PAYLOADS_CONTROL_VALIDATION_KNOWLEDGE_SYNC_IDEMPOTENCE_DIVERGENCE_AND_FINANCIAL_MODEL_PRESERVATION_OK')
